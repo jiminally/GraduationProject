@@ -1,4 +1,4 @@
-# Zero-shot Video Moment Retrieval with Query Refinement
+# Graduation Project
 
 ## 실행 순서
 
