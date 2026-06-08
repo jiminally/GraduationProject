@@ -1,114 +1,96 @@
-# VTG-GPT
+# Zero-shot Video Moment Retrieval with Query Refinement
 
-<a href='https://arxiv.org/abs/2403.02076'><img src='https://img.shields.io/badge/Paper-Arxiv-red'></a>
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/vtg-gpt-tuning-free-zero-shot-video-temporal-1/zero-shot-moment-retrieval-on-qvhighlights)](https://paperswithcode.com/sota/zero-shot-moment-retrieval-on-qvhighlights?p=vtg-gpt-tuning-free-zero-shot-video-temporal-1)
+## 실행 순서
 
-This is our implementation for the paper **VTG-GPT: Tuning-Free Zero-Shot Video Temporal Grounding with GPT**. 
-
-VTG-GPT leverages frozen GPTs to enable zero-shot inference without training.
-
-![Alt text](manuscript/pipeline.png)
-
-- [VTG-GPT](#vtg-gpt)
-  - [Preparation](#preparation)
-  - [Inference on QVHighlights val split](#inference-on-qvhighlights-val-split)
-  - [MiniGPT-v2 for Image captioning](#minigpt-v2-for-image-captioning)
-  - [Baichuan2 for Query debiasing](#baichuan2-for-query-debiasing)
-- [Acknowledgement](#acknowledgement)
-- [Citation](#citation)
-
-
-## Preparation
-
-1. Install dependencies
-
-```sh
+### 환경 설정
+```bash
 conda create -n vtg-gpt python=3.10
 conda activate vtg-gpt
 pip install -r requirements.txt
 ```
 
-2. Unzip caption files
-
-```sh
+### 캡션 파일 압축 해제
+```bash
 cd data/qvhighlights/caption/
 unzip val.zip
 ```
 
+### 실행
+```bash
+# 1. 정제 쿼리 생성
+python Baichuan2/refine_query_semantic.py
 
-## Inference on QVHighlights val split
+# 2. 베이스라인 쿼리 복원
+cp data/qvhighlights/query/val_7B.jsonl data/qvhighlights/query/val.jsonl
 
-```sh
-# inference
+# 3. 머지
+python merge.py
+
+# 4. 추론
 python infer_qvhighlights.py val
 
-# evaluation
+# 5. 평가
 bash standalone_eval/eval.sh
-```
 
-Run the above code to get:
+# 6. 분석
+python analysis.py
 
-| Metrics| R1@0.5 | R1@0.7 | mAP@0.5 | mAP@0.75 | mAP@avg |
-| -----  | ------ | ------ | ------- | -------- | ------- |
-| Values | 59.03  | 38.90   | 56.11   | 35.44    | 35.57   |
-
-
-## MiniGPT-v2 for Image captioning
-
-```sh
-cd minigpt
-conda create --name minigptv python=3.9
-pip install -r requirements.txt
-```
-
-```sh
-python run_v2.py
+# 7. 시각화
+python visualize.py
 ```
 
 
-## Baichuan2 for Query debiasing
 
-```sh
-cd Baichuan2
-conda activate vtg-gpt
-```
+## 연구 소개
 
-```sh
-python rephrase_query.py
-```
+VTG-GPT 기반 Zero-shot Video Moment Retrieval 성능 향상 연구.
+Top-1 예측 구간의 캡션을 피드백으로 활용하는 쿼리 정제 파이프라인을 설계하여 추가 학습 없이 성능을 개선하였다.
 
 
-# Acknowledgement
 
-We thank Youyao Jia for helpful discussions.
+## 연구 배경
 
-This code is based on [Moment-DETR](https://github.com/jayleicn/moment_detr) and [SeViLA](https://github.com/Yui010206/SeViLA). We used resources from [MiniGPT-4](https://github.com/Vision-CAIR/MiniGPT-4), [Baichuan2](https://github.com/baichuan-inc/Baichuan2), [LLaMa2](https://github.com/facebookresearch/llama). We thank the authors for their awesome open-source contributions.
+Video Moment Retrieval(VMR)은 자연어 쿼리가 주어졌을 때, 비디오에서 해당 내용이 등장하는 시간 구간을 찾는 문제이다.
+
+기존 VTG-GPT는 원본 쿼리와 paraphrased 쿼리를 사용하여 구간을 추론하지만, 모델이 쿼리의 핵심 행위를 찾지 못하는 경우가 존재한다. 예를 들어 "Woman holds up beverages in a car" 쿼리에서 "차 안에 여자가 있는 장면"은 찾지만 "음료를 들고 있는 구체적인 행위"는 찾지 못하는 경우가 있다.
 
 
-# Citation
-If you find this project useful for your research, please kindly cite our paper.
 
-```
-@inproceedings{xu2025zero,
-  title={Zero-shot video moment retrieval via off-the-shelf multimodal large language models},
-  author={Xu, Yifang and Sun, Yunzhuo and Zhai, Benxiang and Li, Ming and Liang, Wenxin and Li, Yang and Du, Sidan},
-  booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
-  volume={39},
-  number={9},
-  pages={8978--8986},
-  year={2025}
-}
-```
+## 제안 방법
 
-```
-@article{xu2024vtg,
-  title={VTG-GPT: Tuning-Free Zero-Shot Video Temporal Grounding with GPT},
-  author={Xu, Yifang and Sun, Yunzhuo and Xie, Zien and Zhai, Benxiang and Du, Sidan},
-  journal={Applied Sciences},
-  volume={14},
-  number={5},
-  pages={1894},
-  year={2024},
-  publisher={MDPI}
-}
-```
+무조건적인 쿼리 재작성은 오히려 성능을 저하시킨다는 문제를 발견하여, LLM 개입 여부를 먼저 판단하는 **Semantic Similarity Gate**를 도입하였다.
+
+### 전체 파이프라인
+
+1. **초기 검색**: 원본 쿼리로 VTG-GPT 추론 → Top-1 구간 획득
+2. **Semantic Similarity Gate**: `all-MiniLM-L6-v2`로 원본 쿼리 ↔ Top-1 캡션 유사도 계산
+   - HIGH (≥ 0.7): 원본 쿼리 유지
+   - MID (0.4 ~ 0.7): Baichuan2-7B-Chat으로 쿼리 재작성
+   - LOW (≤ 0.4): 원본 쿼리 유지 (캡션이 쿼리와 무관하여 환각 위험)
+3. **최종 재검색**: 정제된 쿼리로 VTG-GPT 재추론 → 최종 구간 출력
+
+### 쿼리 정제 프롬프트
+
+Few-shot Chain-of-Thought 방식으로 캡션의 시각적 정보를 쿼리에 반영하도록 설계하였다.
+
+
+
+## 실험 결과
+
+### Baseline vs Ours
+
+| 평가지표 | 7B 베이스라인 | 우리의 실험 |
+|---|---|---|
+| MR-full-mAP | 33.02 | **33.19 (+0.17)** |
+| MR-long-mAP | 33.53 | 33.48 (-0.05) |
+| MR-middle-mAP | 37.83 | **38.25 (+0.42)** |
+| MR-short-mAP | 3.94 | 3.91 (-0.03) |
+| MR-full-R1@0.5 | 58.39 | 57.87 (-0.52) |
+
+### 캡션 수 최적화 실험 (full-mAP)
+
+| 캡션 1개 | 캡션 2개 | 캡션 3개 | 캡션 4개 |
+|---|---|---|---|
+| 33.07 | 33.22 | **33.39** | 33.29 |
+
+베이스라인(33.02) 대비 캡션 3개 사용 시 최고 성능 달성 (+0.37)
