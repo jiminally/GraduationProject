@@ -66,6 +66,8 @@ def compute_mr_ap(submission, ground_truth, iou_thds=np.linspace(0.5, 0.95, 10),
     iou_thd2ap["average"] = np.mean(ap_thds)
     # formatting
     iou_thd2ap = {k: float(f"{100 * v:.2f}") for k, v in iou_thd2ap.items()}
+    
+
     return iou_thd2ap
 
 

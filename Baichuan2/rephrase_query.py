@@ -26,7 +26,7 @@ def print_running_time(name):
 @print_running_time("chat")
 def chat(txt, model, tokenizer, device='cuda:0'):
     model.generation_config = \
-        GenerationConfig.from_pretrained("baichuan-inc/Baichuan2-13B-Chat")
+        GenerationConfig.from_pretrained("baichuan-inc/Baichuan2-7B-Chat")
     messages = []
     messages.append({"role": "user", "content": txt})
     response = model.chat(tokenizer, messages)
@@ -35,12 +35,12 @@ def chat(txt, model, tokenizer, device='cuda:0'):
 
 def main():
     tokenizer = AutoTokenizer.from_pretrained(
-        "baichuan-inc/Baichuan2-13B-Chat",
+        "baichuan-inc/Baichuan2-7B-Chat",
         use_fast=False,
         trust_remote_code=True,
     )
     model = AutoModelForCausalLM.from_pretrained(
-        "baichuan-inc/Baichuan2-13B-Chat",
+        "baichuan-inc/Baichuan2-7B-Chat",
         device_map="auto",
         torch_dtype=torch.bfloat16,
         trust_remote_code=True,
@@ -61,8 +61,8 @@ def main():
             response = chat(txt, model, tokenizer)
             
             response = response.strip().split('\n')
-            rephrase_queries = [r.split('. ', 1)[1]
-                                for r in response if response]
+            rephrase_queries = [r.split('. ', 1)[1] if '. ' in r else r
+                    for r in response if r.strip()]
 
             line["rephrased_query"] = rephrase_queries
             writer.write(line)

@@ -157,7 +157,7 @@ def main(args):
         vid = item["vid"]
         query = item["query"]
         gt_span_list = item["relevant_windows"] if "relevant_windows" in item else None
-        rephrased_query_list = item["rephrased_query"]
+        rephrased_query_list = item["rephrased_query"][:1]
         
         caption = load_jsonl(os.path.join(caption_dir, f"{vid}.jsonl"))
         caption_list = [c["description"] for c in caption]
